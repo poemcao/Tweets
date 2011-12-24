@@ -1,7 +1,7 @@
 # Chengjun WANG @ CMC of City Univeristy of Hong Kong # using Lab PC of 88
 # data cleaning syntax for the raw data of Ocuppying WallStreet Tweets.
 # http://twitterminer.r-shief.org/owscsv/ 
-# 20111210
+# 20111224
 
 ows<-read.csv("d:/chengjun/Twitter data/Ocuupy Wallstreet Data/OccupyWallstreetRawData.csv", header = T, sep = ",", dec = ".")
 # dim(ows)  [1] 1353413      14  # names(ows)
@@ -12,7 +12,7 @@ ows<-read.csv("d:/chengjun/Twitter data/Ocuupy Wallstreet Data/OccupyWallstreetR
 inter<-subset(ows, ows[,11]!="	" )
 solo<-subset(ows,  ows[,11]=="	" )
 # dim(inter)  # 88601    12
-# write.csv(inter, "d:/chengjun/Twitter data/Ocuupy Wallstreet Data/OccupyWallstreetInterData.csv")
+write.csv(inter, "d:/chengjun/Twitter data/Ocuupy Wallstreet Data/OccupyWallstreetInterData.csv")
 inter<-read.csv("d:/chengjun/Twitter data/Ocuupy Wallstreet Data/OccupyWallstreetInterData.csv", header = T, sep = ",", dec = ".")
 
 # class(ows[,11]) # it's factor
@@ -53,6 +53,18 @@ library(igraph)# install.packages("igraph")
 gall<-as.data.frame(cbind(as.character(inter$From.User), as.character(inter$To.User)))
 names(gall)<-c("From.User", "To.User")
 g_all<-graph.data.frame(gall, directed=T, vertices=NULL)
+#~~~~~~~~~~~~~~~~~~~~~~~plot out-degree vs in-degree~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+oud <- as.data.frame(degree(g_all, mode="out"))
+ind <- as.data.frame(degree(g_all, mode="in"))
+all<-as.data.frame(degree(g_all, mode="all"))
+check<-cbind(oud, ind, all)
+names(check)<-c("outdegree", "indegree", "all")
+che<-subset(check, check$outdegree!=0&check$indegree!=0)
+# length(che[,1])/length(check[,1])  
+# 16.8% is the percent of overlap between senders and receivers.
+plot(check$outdegree,check$indegree, xlab="Out-Degree", ylab="In-Degree")
+plot(log(check$outdegree),log(check$indegree), xlab="Out-Degree (log)", ylab="In-Degree (log)")
+cor.test(log(check$outdegree+1),log(check$indegree+1))
 
 jj<-g_all
 class(jj)
@@ -203,15 +215,7 @@ mean(d1006$abs.sentiment.score)
 mean(d1007$abs.sentiment.score)
 mean(d1008$abs.sentiment.score)
 mean(d1009$abs.sentiment.score)
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Geo infor~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
- as.data.frame(table(as.character(inter$Geo)))
-(levels(inter$Geo))[1:5]
- [1] ""                                                                                                                                                                                      
- [2] "a:2:{s:11:\"coordinates\";a:2:{i:0;d:-0.1287999999999999978239628717346931807696819305419921875;i:1;d:-78.4996000000000009322320693172514438629150390625;}s:4:\"type\";s:5:\"Point\";}"
- [3] "a:2:{s:11:\"coordinates\";a:2:{i:0;d:-1.2754000000000000891731133378925733268260955810546875;i:1;d:36.8010000000000019326762412674725055694580078125;}s:4:\"type\";s:5:\"Point\";}"    
- [4] "a:2:{s:11:\"coordinates\";a:2:{i:0;d:-1.283300000000000107291953099775128066539764404296875;i:1;d:36.816699999999997316990629769861698150634765625;}s:4:\"type\";s:5:\"Point\";}"      
- [5] "a:2:{s:11:\"coordinates\";a:2:{i:0;d:-1.2874000000000000998312543742940761148929595947265625;i:1;d:36.7668000000000034788172342814505100250244140625;}s:4:\"type\";s:5:\"Point\";}"    
-# install.packages("geoR")# Spacial analysis is a bit too complex
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~leadership analysis~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 dim(gall)
 # edge pairs or points
@@ -292,7 +296,7 @@ list.of.data.frames = list(ind924, ind925, ind926, ind927, ind928, ind929, ind93
      ind1001, ind1002, ind1003, ind1004, ind1005, ind1006, ind1007, ind1008, ind1009)
 point.cor<-reshape::merge_all(list.of.data.frames, by="To.User", incomparables = NA)
 point.cor[ is.na(point.cor) ] <- 0
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~local hub
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~local hub~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # first, using ind924 till ind1009 choose top 100 in each daily network
 ind924$rank<-rank(1/rank(ind924$Freq924, na.last = TRUE, ties.method =  "random"))
@@ -765,9 +769,376 @@ corrplot(cored, method = "circle", type = c("full"))
 corrplot(cored,type="upper",addtextlabel="no")
 corrplot(cored,add=TRUE, type="lower", method="number",
 	diag=T,addtextlabel="yes", addcolorlabel="right")
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#~~~~~~~~~~~~~~~~~~~~~~~~~~get top rank users~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# find out top 200 aggregate To.User
+to<-data.frame(table(inter$To.User))
+to$rank<-rank(1/rank(to$Freq, na.last=T, ties.method="random"))
+to$twitter<-"http://twitter.com/"
+to$web<-paste(to$twitter, to$Var1,sep="")
+to$twitter<-NULL
+top.to<-subset(to, to$rank<=200)
+# get the top 200 aggregated From.User
+from<-data.frame(table(inter$From.User))
+from$rank<-rank(1/rank(from$Freq, na.last=T, ties.method="random"))
+from$twitter<-"http://twitter.com/"
+from$web<-paste(from$twitter, from$Var1,sep="")
+from$twitter<-NULL
+top.from<-subset(from, from$rank<=200)
+# write.csv(top.to, "d:/chengjun/Twitter data/Ocuupy Wallstreet Data/top200to.csv")
+# write.csv(top.from, "d:/chengjun/Twitter data/Ocuupy Wallstreet Data/top200from.csv")
+top.to$Var1
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+top200toname<-as.character(top.to$Var1)
+top200frname<-as.character(top.from$Var1)
+
+# name:screenName:id:lastStatus:description:statusesCount:followersCount:favoritesCount:friendsCount:
+# url:created:protected:verified:location:
+# tuser <- getUser('geoffjentry') # one time one people
+# tuser<- lookupUsers(c('geoffjentry', 'whitehouse'))      ## This requires OAuth authentication
+library(twitteR)# install.packages("RCurl")
+f<-function(n){
+  tuser <- getUser(n) # one time one people
+   # description<-tuser$description
+   followersCount<-tuser$followersCount
+   friendsCount<-tuser$friendsCount
+   statusesCount<-tuser$statusesCount
+   # favoritesCount<-tuser$favoritesCount
+   m=data.frame(cbind(followersCount, friendsCount,statusesCount))
+   return(m)  
+   }
+ to1<-sapply(top200toname[1:10],f)  
+ to2<-sapply(top200toname[11:19],f)  # AntiSec_ does't exist now
+ # to3<-sapply(top200toname[21:28],f)  # BPGulfLeak doesn't exist
+ # to3.1<-sapply(top200toname[30],f)  #
+ to3<-cbind(to3, to3.1)
+ to4<-sapply(top200toname[31:40],f)  
+ to5<-sapply(top200toname[41:49],f)  # diggrbiii deesn't exist
+ to6<-sapply(top200toname[51:60],f)  
+ to7<-sapply(top200toname[61:70],f)  
+ to8<-sapply(top200toname[71:80],f)  
+ to9<-sapply(top200toname[81:90],f)  
+ to10<-sapply(top200toname[91:100],f)  
+ to11<-sapply(top200toname[101:110],f)  
+ to12<-sapply(c("MMFlint","MotherJones","MoveOn","Mruff221","msnbc","MyDixie_Wrecked",
+                "NaomiAKlein","Newyorkist","NickKristof"),f)  #MrHortonscycles doesn't exist
+ to13<-sapply(top200toname[121:130],f)  
+ to14<-sapply(top200toname[131:140],f)  
+ to15<-sapply(top200toname[141:150],f)  
+ to16<-sapply(top200toname[151:160],f)  #
+ to17<-sapply(top200toname[161:170],f)  #
+ to18<-sapply(top200toname[171:180],f)  #
+ to19<-sapply(top200toname[181:190],f)  #
+ to20<-sapply(top200toname[191:200],f)  #
+write.csv(to1, "D:/github/tweets/twitteR/to1.csv")
+write.csv(to2, "D:/github/tweets/twitteR/to2.csv")
+write.csv(to3, "D:/github/tweets/twitteR/to3.csv")
+write.csv(to4, "D:/github/tweets/twitteR/to4.csv")
+write.csv(to5, "D:/github/tweets/twitteR/to5.csv")
+write.csv(to6, "D:/github/tweets/twitteR/to6.csv")
+write.csv(to7, "D:/github/tweets/twitteR/to7.csv")
+write.csv(to8, "D:/github/tweets/twitteR/to8.csv")
+write.csv(to9, "D:/github/tweets/twitteR/to9.csv")
+write.csv(to10, "D:/github/tweets/twitteR/to10.csv")
+write.csv(to11, "D:/github/tweets/twitteR/to11.csv")
+write.csv(to12, "D:/github/tweets/twitteR/to12.csv")
+write.csv(to13, "D:/github/tweets/twitteR/to13.csv")
+write.csv(to14, "D:/github/tweets/twitteR/to14.csv")
+write.csv(to15, "D:/github/tweets/twitteR/to15.csv")
+write.csv(to16, "D:/github/tweets/twitteR/to16.csv")
+write.csv(to17, "D:/github/tweets/twitteR/to17.csv")
+write.csv(to18, "D:/github/tweets/twitteR/to18.csv")
+write.csv(to19, "D:/github/tweets/twitteR/to19.csv")
+write.csv(to20, "D:/github/tweets/twitteR/to20.csv")
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~local hub of From.User~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# first, using ind924 till ind1009 choose top 100 in each daily network
+out924$rank<-rank(1/rank(out924$Freq924,	na.last	=	TRUE,	ties.method	=	"random"))
+out924s<-subset(out924,	out924$rank>=200)					
+out924s$rank	<-	NULL				
+out925$rank<-rank(1/rank(out925$Freq925,	na.last	=	TRUE,	ties.method	=	"random"))
+out925s<-subset(out925,	out925$rank>=200)					
+out925s$rank	<-	NULL				
+out926$rank<-rank(1/rank(out926$Freq926,na.last	=	TRUE,	ties.method	="random"))	
+out926s<-subset(out926,out926$rank>=200)						
+out926s$rank	<-	NULL				
+out927$rank<-rank(1/rank(out927$Freq927,na.last	=	TRUE,	ties.method	=	"random"))	
+out927s<-subset(out927,out927$rank>=200)						
+out927s$rank<-	NULL					
+out928$rank<-rank(1/rank(out928$Freq928,na.last	=	TRUE,	ties.method	=	"random"))	
+out928s<-subset(out928,out928$rank>=200)						
+out928s$rank<-	NULL					
+out929$rank<-rank(1/rank(out929$Freq929,na.last	=	TRUE,	ties.method	=	"random"))	
+out929s<-subset(out929,out929$rank>=200)						
+out929s$rank<-	NULL					
+out930$rank<-rank(1/rank(out930$Freq930,na.last	=	TRUE,	ties.method	=	"random"))	
+out930s<-subset(out930,out930$rank>=200)						
+out930s$rank<-	NULL					
+out1001$rank<-rank(1/rank(out1001$Freq1001,na.last	=	TRUE,	ties.method	=	"random"))	
+out1001s<-subset(out1001,out1001$rank>=200)						
+out1001s$rank<-	NULL					
+out1002$rank<-rank(1/rank(out1002$Freq1002,na.last	=	TRUE,	ties.method	=	"random"))	
+out1002s<-subset(out1002,out1002$rank>=200)						
+out1002s$rank<-	NULL					
+out1003$rank<-rank(1/rank(out1003$Freq1003,na.last	=	TRUE,	ties.method	=	"random"))	
+out1003s<-subset(out1003,out1003$rank>=200)						
+out1003s$rank<-	NULL					
+out1004$rank<-rank(1/rank(out1004$Freq1004,na.last	=	TRUE,	ties.method	=	"random"))	
+out1004s<-subset(out1004,out1004$rank>=200)						
+out1004s$rank<-	NULL					
+out1005$rank<-rank(1/rank(out1005$Freq1005,na.last	=	TRUE,	ties.method	=	"random"))	
+out1005s<-subset(out1005,out1005$rank>=200)						
+out1005s$rank<-	NULL					
+out1006$rank<-rank(1/rank(out1006$Freq1006,na.last	=	TRUE,	ties.method	=	"random"))	
+out1006s<-subset(out1006,out1006$rank>=200)						
+out1006s$rank<-	NULL					
+out1007$rank<-rank(1/rank(out1007$Freq1007,na.last	=	TRUE,	ties.method	=	"random"))	
+out1007s<-subset(out1007,out1007$rank>=200)						
+out1007s$rank<-	NULL					
+out1008$rank<-rank(1/rank(out1008$Freq1008,na.last	=	TRUE,	ties.method	=	"random"))	
+out1008s<-subset(out1008,out1008$rank>=200)						
+out1008s$rank<-	NULL					
+out1009$rank<-rank(1/rank(out1009$Freq1009,na.last	=	TRUE,	ties.method	=	"random"))	
+out1009s<-subset(out1009,out1009$rank>=200)						
+out1009s$rank<-	NULL					
 
 
+list.From<-unique(factor(c(as.character(out924s[,1]),	as.character(out924s[,1]),as.character(out925s[,1]),as.character(out926s[,1])					
+	,as.character(out927s[,1]),as.character(out928s[,1]),as.character(out929s[,1]),as.character(out930s[,1])					
+	,as.character(out1001s[,1]),	as.character(out1002s[,1]),as.character(out1003s[,1]),as.character(out1004s[,1])				
+	,as.character(out1005s[,1]),as.character(out1006s[,1])					
+	,as.character(out1007s[,1]),as.character(out1008s[,1]),as.character(out1009s[,1])	)))				
+						
+out924t<-subset(out924,	out924[,1]%in%list.From)					
+out925t<-subset(out925,out925[,1]%in%list.From)						
+out926t<-subset(out926,out926[,1]%in%list.From)						
+out927t<-subset(out927,out927[,1]%in%list.From)						
+out928t<-subset(out928,out928[,1]%in%list.From)						
+out929t<-subset(out929,out929[,1]%in%list.From)						
+out930t<-subset(out930,out930[,1]%in%list.From)						
+out1001t<-subset(out1001,out1001[,1]%in%list.From)						
+out1002t<-subset(out1002,out1002[,1]%in%list.From)						
+out1003t<-subset(out1003,out1003[,1]%in%list.From)						
+out1004t<-subset(out1004,out1004[,1]%in%list.From)						
+out1005t<-subset(out1005,out1005[,1]%in%list.From)						
+out1006t<-subset(out1006,out1006[,1]%in%list.From)						
+out1007t<-subset(out1007,out1007[,1]%in%list.From)						
+out1008t<-subset(out1008,out1008[,1]%in%list.From)						
+out1009t<-subset(out1009,out1009[,1]%in%list.From)						
+out924t[,3]<-NULL						
+out925t[,3]<-NULL						
+out926t[,3]<-NULL						
+out927t[,3]<-NULL						
+out928t[,3]<-NULL						
+out929t[,3]<-NULL						
+out930t[,3]<-NULL						
+out1001t[,3]<-NULL						
+out1002t[,3]<-NULL						
+out1003t[,3]<-NULL						
+out1004t[,3]<-NULL						
+out1005t[,3]<-NULL						
+out1006t[,3]<-NULL						
+out1007t[,3]<-NULL						
+out1008t[,3]<-NULL						
+out1009t[,3]<-NULL						
+out2t<-merge(out924t,	out925t,	by="From.User",	all	=	T,	incomparables= NA)
+out3t<-merge(out2t,	out926t,	by="From.User",	all	=	T,	incomparables= NA)
+out4t<-merge(out3t,	out927t,	by="From.User",	all	=	T,	incomparables= NA)
+out5t<-merge(out4t,	out928t,	by="From.User",	all	=	T,	incomparables= NA)
+out6t<-merge(out5t,	out929t,	by="From.User",	all	=	T,	incomparables= NA)
+out7t<-merge(out6t,	out930t,	by="From.User",	all	=	T,	incomparables= NA)
+out8t<-merge(out7t,	out1001t,	by="From.User",	all	=	T,	incomparables= NA)
+out9t<-merge(out8t,	out1002t,	by="From.User",	all	=	T,	incomparables= NA)
+out10t<-merge(out9t,	out1003t,	by="From.User",	all	=	T,	incomparables= NA)
+out11t<-merge(out10t,	out1004t,	by="From.User",	all	=	T,	incomparables= NA)
+out12t<-merge(out11t,	out1005t,	by="From.User",	all	=	T,	incomparables= NA)
+out13t<-merge(out12t,	out1006t,	by="From.User",	all	=	T,	incomparables= NA)
+out14t<-merge(out13t,	out1007t,	by="From.User",	all	=	T,	incomparables= NA)
+out15t<-merge(out14t,	out1008t,	by="From.User",	all	=	T,	incomparables= NA)
+out16t<-merge(out15t,	out1009t,	by="From.User",	all	=	T,	incomparables= NA)
+out16t[	is.na(out16t)	]	<-	0		
+
+
+
+names(out16t) <- c("From.User","Sep24","Sep25","Sep26","Sep27","Sep28","Sep29","Sep30","Oct1","Oct2","Oct3","Oct4","Oct5","Oct6","Oct7","Oct8","Oct9")
+
+corout <- cor(out16t[,2:17])
+
+library(corrplot) # install.packages("corrplot")
+corrplot(corout, method = "circle", type = c("full"))
+
+## circle + colorful number
+corrplot(corout,type="upper",addtextlabel="no")
+corrplot(corout,add=TRUE, type="lower", method="number",
+	diag=T,addtextlabel="yes", addcolorlabel="right")
+# N of From.User is 26316, while N of To.User is 28253.
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~non-local hub of to.user~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# first, using ind924 till ind1009 choose top 100 in each daily network
+ind924$rank<-rank(1/rank(ind924$Freq924, na.last = TRUE, ties.method =  "random"))
+ind924s<-subset(ind924, ind924$rank>200)
+ind924s$rank <- NULL
+# ind924[,4]<-NULL
+# names(ind924s)<-c("To.User","Freq924", "rank")
+
+ind925$rank<-rank(1/rank(ind925$Freq925, na.last = TRUE, ties.method =  "random"))
+ind925s<-subset(ind925, ind925$rank>200)
+ind925s$rank <- NULL
+ind926$rank<-rank(1/rank(ind926$Freq926,na.last = TRUE, ties.method =  "random"))
+ind926s<-subset(ind926,ind926$rank>200)
+ind926s$rank <- NULL
+ind927$rank<-rank(1/rank(ind927$Freq927,na.last = TRUE, ties.method =  "random"))
+ind927s<-subset(ind927,ind927$rank>200)
+ind927s$rank<- NULL
+ind928$rank<-rank(1/rank(ind928$Freq928,na.last = TRUE, ties.method =  "random"))
+ind928s<-subset(ind928,ind928$rank>200)
+ind928s$rank<- NULL
+ind929$rank<-rank(1/rank(ind929$Freq929,na.last = TRUE, ties.method =  "random"))
+ind929s<-subset(ind929,ind929$rank>200)
+ind929s$rank<- NULL
+ind930$rank<-rank(1/rank(ind930$Freq930,na.last = TRUE, ties.method =  "random"))
+ind930s<-subset(ind930,ind930$rank>200)
+ind930s$rank<- NULL
+ind1001$rank<-rank(1/rank(ind1001$Freq1001,na.last = TRUE, ties.method =  "random"))
+ind1001s<-subset(ind1001,ind1001$rank>200)
+ind1001s$rank<- NULL
+ind1002$rank<-rank(1/rank(ind1002$Freq1002,na.last = TRUE, ties.method =  "random"))
+ind1002s<-subset(ind1002,ind1002$rank>200)
+ind1002s$rank<- NULL
+ind1003$rank<-rank(1/rank(ind1003$Freq1003,na.last = TRUE, ties.method =  "random"))
+ind1003s<-subset(ind1003,ind1003$rank>200)
+ind1003s$rank<- NULL
+ind1004$rank<-rank(1/rank(ind1004$Freq1004,na.last = TRUE, ties.method =  "random"))
+ind1004s<-subset(ind1004,ind1004$rank>200)
+ind1004s$rank<- NULL
+ind1005$rank<-rank(1/rank(ind1005$Freq1005,na.last = TRUE, ties.method =  "random"))
+ind1005s<-subset(ind1005,ind1005$rank>200)
+ind1005s$rank<- NULL
+ind1006$rank<-rank(1/rank(ind1006$Freq1006,na.last = TRUE, ties.method =  "random"))
+ind1006s<-subset(ind1006,ind1006$rank>200)
+ind1006s$rank<- NULL
+ind1007$rank<-rank(1/rank(ind1007$Freq1007,na.last = TRUE, ties.method =  "random"))
+ind1007s<-subset(ind1007,ind1007$rank>200)
+ind1007s$rank<- NULL
+ind1008$rank<-rank(1/rank(ind1008$Freq1008,na.last = TRUE, ties.method =  "random"))
+ind1008s<-subset(ind1008,ind1008$rank>200)
+ind1008s$rank<- NULL
+ind1009$rank<-rank(1/rank(ind1009$Freq1009,na.last = TRUE, ties.method =  "random"))
+ind1009s<-subset(ind1009,ind1009$rank>200)
+ind1009s$rank<- NULL
+
+list.To<-unique(factor(c(as.character(ind924s[,1]), as.character(ind924s[,1]),as.character(ind925s[,1]),as.character(ind926s[,1])
+   ,as.character(ind927s[,1]),as.character(ind928s[,1]),as.character(ind929s[,1]),as.character(ind930s[,1])
+   ,as.character(ind1001s[,1]), as.character(ind1002s[,1]),as.character(ind1003s[,1]),as.character(ind1004s[,1])
+   ,as.character(ind1005s[,1]),as.character(ind1006s[,1])
+   ,as.character(ind1007s[,1]),as.character(ind1008s[,1]),as.character(ind1009s[,1]) )))
+
+ind924t<-subset(ind924, ind924[,1]%in%list.To)
+ind925t<-subset(ind925,ind925[,1]%in%list.To)
+ind926t<-subset(ind926,ind926[,1]%in%list.To)
+ind927t<-subset(ind927,ind927[,1]%in%list.To)
+ind928t<-subset(ind928,ind928[,1]%in%list.To)
+ind929t<-subset(ind929,ind929[,1]%in%list.To)
+ind930t<-subset(ind930,ind930[,1]%in%list.To)
+ind1001t<-subset(ind1001,ind1001[,1]%in%list.To)
+ind1002t<-subset(ind1002,ind1002[,1]%in%list.To)
+ind1003t<-subset(ind1003,ind1003[,1]%in%list.To)
+ind1004t<-subset(ind1004,ind1004[,1]%in%list.To)
+ind1005t<-subset(ind1005,ind1005[,1]%in%list.To)
+ind1006t<-subset(ind1006,ind1006[,1]%in%list.To)
+ind1007t<-subset(ind1007,ind1007[,1]%in%list.To)
+ind1008t<-subset(ind1008,ind1008[,1]%in%list.To)
+ind1009t<-subset(ind1009,ind1009[,1]%in%list.To)
+ind924t[,3]<-NULL
+ind925t[,3]<-NULL
+ind926t[,3]<-NULL
+ind927t[,3]<-NULL
+ind928t[,3]<-NULL
+ind929t[,3]<-NULL
+ind930t[,3]<-NULL
+ind1001t[,3]<-NULL
+ind1002t[,3]<-NULL
+ind1003t[,3]<-NULL
+ind1004t[,3]<-NULL
+ind1005t[,3]<-NULL
+ind1006t[,3]<-NULL
+ind1007t[,3]<-NULL
+ind1008t[,3]<-NULL
+ind1009t[,3]<-NULL
+ind2t<-merge(ind924t, ind925t, by="To.User", all = T, incomparables = NA)
+ind3t<-merge(ind2t, ind926t, by="To.User", all = T, incomparables = NA)
+ind4t<-merge(ind3t, ind927t, by="To.User", all = T, incomparables = NA)
+ind5t<-merge(ind4t, ind928t, by="To.User", all = T, incomparables = NA)
+ind6t<-merge(ind5t, ind929t, by="To.User", all = T, incomparables = NA)
+ind7t<-merge(ind6t, ind930t, by="To.User", all = T, incomparables = NA)
+ind8t<-merge(ind7t, ind1001t, by="To.User", all = T, incomparables = NA)
+ind9t<-merge(ind8t, ind1002t, by="To.User", all = T, incomparables = NA)
+ind10t<-merge(ind9t, ind1003t, by="To.User", all = T, incomparables = NA)
+ind11t<-merge(ind10t, ind1004t, by="To.User", all = T, incomparables = NA)
+ind12t<-merge(ind11t, ind1005t, by="To.User", all = T, incomparables = NA)
+ind13t<-merge(ind12t, ind1006t, by="To.User", all = T, incomparables = NA)
+ind14t<-merge(ind13t, ind1007t, by="To.User", all = T, incomparables = NA)
+ind15t<-merge(ind14t, ind1008t, by="To.User", all = T, incomparables = NA)
+ind16t<-merge(ind15t, ind1009t, by="To.User", all = T, incomparables = NA)
+ind16t[ is.na(ind16t) ] <- 0
+names(ind16t) <- c("To.User","Sep24","Sep25","Sep26","Sep27","Sep28","Sep29","Sep30","Oct1","Oct2","Oct3","Oct4","Oct5","Oct6","Oct7","Oct8","Oct9")
+
+cort <- cor(ind16t[,2:17])
+
+library(corrplot) # install.packages("corrplot")
+corrplot(cort, method = "circle", type = c("full"))
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# delte the RT, focus on pure @
+test<-inter$Text[1:100]  # 16, 36, 37, 79, 91, 99
+nort<-strsplit(as.character(test), "RT")  # 17, 18, 20, 38, 48, 52, 58, 61, 64, 81, 82, 84
+# "please RT this video"
+norta<-strsplit(as.character(inter$Text), "RT @") # 58
+# "RT: @P2Action @GottaLaff 25" # try "RT: @"
+# length(norta[[91]])  #
+f<-function(n){
+     l<-length(norta[[n]])
+     return(l)  
+   }
+inter$RT<-sapply(c(1:length(norta)),f)  
+
+# table(inter$RT)
+# Only 4230 RT in 88601 interactions.
+   1     2     3     4     5 
+84371  3988   222    18     2 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Geo infor~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+ as.data.frame(table(as.character(inter$Geo)))
+(levels(inter$Geo))[1:5]
+ [1] ""                                                                                                                                                                                      
+ [2] "a:2:{s:11:\"coordinates\";a:2:{i:0;d:-0.1287999999999999978239628717346931807696819305419921875;i:1;d:-78.4996000000000009322320693172514438629150390625;}s:4:\"type\";s:5:\"Point\";}"
+ [3] "a:2:{s:11:\"coordinates\";a:2:{i:0;d:-1.2754000000000000891731133378925733268260955810546875;i:1;d:36.8010000000000019326762412674725055694580078125;}s:4:\"type\";s:5:\"Point\";}"    
+ [4] "a:2:{s:11:\"coordinates\";a:2:{i:0;d:-1.283300000000000107291953099775128066539764404296875;i:1;d:36.816699999999997316990629769861698150634765625;}s:4:\"type\";s:5:\"Point\";}"      
+ [5] "a:2:{s:11:\"coordinates\";a:2:{i:0;d:-1.2874000000000000998312543742940761148929595947265625;i:1;d:36.7668000000000034788172342814505100250244140625;}s:4:\"type\";s:5:\"Point\";}"    
+# install.packages("geoR")# Spacial analysis is a bit too complex
+#  using Yahoo!Geocoding API: developer.yahoo/maps
+test<-(levels(inter$Geo)) 
+length(test) # only 510 tweets with geo info
+test1<-strsplit(test, "d:") # 58
+# 87965 rows without geo infor
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~Emotion and Online Discussion~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+at<-subset(inter, inter$RT==1)
+at$num<-1
+at1<-aggregate(at$num, by=list(at$From.User, abs(at$sentiment.score)), FUN=sum)
+names(at1)<-c("sender", "emotion", "num")
+at1[,4]<-(at1[,2])*(at1[,3])
+at2<-aggregate(at1[,3:4], by=list(at1[,1]), FUN=sum)
+at2$emotion<-at2[,3]/at2[,2]
+cor.test(at2[,2], at2[,4])
+plot(log(at2[,4]+1),log(log(at2[,2]+1)))
+summary(reg)
+cor.test(at2[,2], at2[,3])
+plot(log(at2[,3]+1),log(log(at2[,2]+1)))
+
+plot(log(at2[,3]),(at2[,2]), xlab="Emotions (log)", ylab="Number of Tweets")
+
+
+plot(at2[,3],at2[,2], xlab="Emotions", ylab="Number of Tweets")
+reg<-lm((at2[,2])~(at2[,3]))
+abline(reg)
+text(400,800," R-squared: 0.4566")
 
 
 

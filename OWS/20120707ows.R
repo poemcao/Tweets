@@ -13,8 +13,8 @@ inter<-subset(ows, ows[,11]!="	" )
 solo<-subset(ows,  ows[,11]=="	" )
 # dim(inter)  # 88601    12
 write.csv(inter, "d:/chengjun/Twitter data/Ocuupy Wallstreet Data/OccupyWallstreetInterData.csv")
-inter<-read.csv("d:/chengjun/Twitter data/Ocuupy Wallstreet Data/OccupyWallstreetInterData.csv", header = T, sep = ",", dec = ".")
-
+inter<-read.csv("/Users/wangpianpian/Dropbox/projects/tweets/data_delete after you download/OccupyWallstreetInterData.csv", header = T, sep = ",", dec = ".")
+names(inter)
 # class(ows[,11]) # it's factor
 # ows$To.User[1:100] # compare to # inter$To.User[1:100]
 
@@ -85,14 +85,13 @@ savePlot(filename = "Nonlinear preferential attachment",
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~sentiment analysis~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Download Hu & Liu's opinion lexicon:
 # http://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html
-hu.liu.pos = scan(file='d:/chengjun/Twitter data/Ocuupy Wallstreet Data/positive-words.txt',
-    what='character', comment.char=';')
-hu.liu.neg = scan(file='d:/chengjun/Twitter data/Ocuupy Wallstreet Data/negative-words.txt',
-    what='character', comment.char=';')
+hu.liu.pos = scan(file='/Users/wangpianpian/Documents/cityu/r/sentiment analysis/opinion-lexicon-English/positive-words.txt',    what='character', comment.char=';')
+hu.liu.neg = scan(file='/Users/wangpianpian/Documents/cityu/r/sentiment analysis/opinion-lexicon-English/negative-words.txt',    what='character', comment.char=';')
 # Add a few twitter-specific and/or especially social movement terms:
-pos.words = c(hu.liu.pos) #, 'upgrade'
-neg.words = c(hu.liu.neg) #, 'wtf', 'wait','waiting', 'epicfail', 'mechanical'
+pos.words = c(hu.liu.pos, 'upgrade') #, 'upgrade'
+neg.words = c(hu.liu.neg, 'wtf', 'epicfail') #, 'wtf', 'wait','waiting', 'epicfail', 'mechanical'
 # function of sentiment analysis
+#  A. sum score
 score.sentiment = function(sentences, pos.words, neg.words, .progress='none')
 {
     require(plyr)  # install.packages("stringr")
@@ -126,28 +125,178 @@ score.sentiment = function(sentences, pos.words, neg.words, .progress='none')
         neg.matches = !is.na(neg.matches)
  
         # and conveniently enough, TRUE/FALSE will be treated as 1/0 by sum():
-        score = sum(pos.matches) - sum(neg.matches)
- 
+        score = sum(pos.matches) + sum(neg.matches)
+
         return(score)
     }, pos.words, neg.words, .progress=.progress )
  
     scores.df = data.frame(score=scores, text=sentences)
     return(scores.df)
 }
+
+#  B. Positive score
+pos.score.sentiment = function(sentences, pos.words, neg.words, .progress='none')
+{
+    require(plyr)  # install.packages("stringr")
+    require(stringr)
+ 
+    # we got a vector of sentences. plyr will handle a list
+    # or a vector as an "l" for us
+    # we want a simple array ("a") of scores back, so we use
+    # "l" + "a" + "ply" = "laply":
+    scores = laply(sentences, function(sentence, pos.words, neg.words) {
+ 
+        # clean up sentences with R's regex-driven global substitute, gsub():
+        sentence = gsub('[[:punct:]]', '', sentence)
+        sentence = gsub('[[:cntrl:]]', '', sentence)
+        sentence = gsub('\\d+', '', sentence)
+        # and convert to lower case:
+        sentence = tolower(sentence)
+ 
+        # split into words. str_split is in the stringr package
+        word.list = str_split(sentence, '\\s+')
+        # sometimes a list() is one level of hierarchy too much
+        words = unlist(word.list)
+ 
+        # compare our words to the dictionaries of positive & negative terms
+        pos.matches = match(words, pos.words)
+        neg.matches = match(words, neg.words)
+ 
+        # match() returns the position of the matched term or NA
+        # we just want a TRUE/FALSE:
+        pos.matches = !is.na(pos.matches)
+        neg.matches = !is.na(neg.matches)
+ 
+        # and conveniently enough, TRUE/FALSE will be treated as 1/0 by sum():
+        pos.score = sum(pos.matches) 
+
+        return(pos.score)
+    }, pos.words, neg.words, .progress=.progress )
+ 
+    pos.scores.df = data.frame(pos.score =scores, text=sentences)
+    return(pos.scores.df)
+}
+
+#  C. Negative score
+neg.score.sentiment = function(sentences, pos.words, neg.words, .progress='none')
+{
+    require(plyr)  # install.packages("stringr")
+    require(stringr)
+ 
+    # we got a vector of sentences. plyr will handle a list
+    # or a vector as an "l" for us
+    # we want a simple array ("a") of scores back, so we use
+    # "l" + "a" + "ply" = "laply":
+    scores = laply(sentences, function(sentence, pos.words, neg.words) {
+ 
+        # clean up sentences with R's regex-driven global substitute, gsub():
+        sentence = gsub('[[:punct:]]', '', sentence)
+        sentence = gsub('[[:cntrl:]]', '', sentence)
+        sentence = gsub('\\d+', '', sentence)
+        # and convert to lower case:
+        sentence = tolower(sentence)
+ 
+        # split into words. str_split is in the stringr package
+        word.list = str_split(sentence, '\\s+')
+        # sometimes a list() is one level of hierarchy too much
+        words = unlist(word.list)
+ 
+        # compare our words to the dictionaries of positive & negative terms
+        pos.matches = match(words, pos.words)
+        neg.matches = match(words, neg.words)
+ 
+        # match() returns the position of the matched term or NA
+        # we just want a TRUE/FALSE:
+        pos.matches = !is.na(pos.matches)
+        neg.matches = !is.na(neg.matches)
+ 
+        # and conveniently enough, TRUE/FALSE will be treated as 1/0 by sum():
+        neg.score = sum(neg.matches) 
+
+        return(neg.score)
+    }, pos.words, neg.words, .progress=.progress )
+ 
+    neg.scores.df = data.frame(neg.score =scores, text=sentences)
+    return(neg.scores.df)
+}
+
+#~~~~try to generate three score at one time but fail~~~#
+score.sentiment = function(sentences, pos.words, neg.words, .progress='none')
+{
+    require(plyr)  # install.packages("stringr")
+    require(stringr)
+ 
+    # we got a vector of sentences. plyr will handle a list
+    # or a vector as an "l" for us
+    # we want a simple array ("a") of scores back, so we use
+    # "l" + "a" + "ply" = "laply":
+    scores = laply(sentences, function(sentence, pos.words, neg.words) {
+ 
+        # clean up sentences with R's regex-driven global substitute, gsub():
+        sentence = gsub('[[:punct:]]', '', sentence)
+        sentence = gsub('[[:cntrl:]]', '', sentence)
+        sentence = gsub('\\d+', '', sentence)
+        # and convert to lower case:
+        sentence = tolower(sentence)
+ 
+        # split into words. str_split is in the stringr package
+        word.list = str_split(sentence, '\\s+')
+        # sometimes a list() is one level of hierarchy too much
+        words = unlist(word.list)
+ 
+        # compare our words to the dictionaries of positive & negative terms
+        pos.matches = match(words, pos.words)
+        neg.matches = match(words, neg.words)
+ 
+        # match() returns the position of the matched term or NA
+        # we just want a TRUE/FALSE:
+        pos.matches = !is.na(pos.matches)
+        neg.matches = !is.na(neg.matches)
+ 
+        # and conveniently enough, TRUE/FALSE will be treated as 1/0 by sum():
+        sum.score = sum(pos.matches) + sum(neg.matches) 
+                   pos.score = sum(pos.matches)
+        neg.score = sum(neg.matches)           
+
+        return(data.frame(c(sum.score, pos.score, neg.score)))
+    }, pos.words, neg.words, .progress=.progress )
+ 
+    scores.df = data.frame(score =scores, text=sentences)
+    return(scores.df)
+}
+sample = c("You're awesome and I love you",
+     "I hate and hate and hate. So angry. Die!",
+     "Impressed and amazed: you are peerless in your achievement of unparalleled mediocrity.")##   as.character(inter$Text[1:10])
+#Compute
+result = score.sentiment(sample, pos.words, neg.words)
+inter$sentiment.score<-result$score
+#~~~~try to generate three score at one time but fail~~~#
+
+
 # Test
 sample = c("You're awesome and I love you",
      "I hate and hate and hate. So angry. Die!",
-     "Impressed and amazed: you are peerless in your achievement of unparalleled mediocrity.")## as.character(inter$Text[1:10])
-# Compute
+     "Impressed and amazed: you are peerless in your achievement of unparalleled mediocrity.")##   as.character(inter$Text[1:10])
+#Compute
 sample=as.character(inter$Text)
-result = score.sentiment(sample, pos.words, neg.words)
-inter$sentiment.score<-result$score
-inter$abs.sentiment.score<-abs(inter$sentiment.score)
+sum.result = score.sentiment(sample, pos.words, neg.words)
+pos.result = pos.score.sentiment(sample, pos.words, neg.words)
+neg.result = neg.score.sentiment(sample, pos.words, neg.words)
+
+inter$sum.sen.score<-sum.result$score
+inter$pos.sen.score<-pos.result$pos.score
+inter$neg.sen.score<-neg.result$neg.score
+
+#inter$abs.sentiment.score<-abs(inter$sentiment.score)
 # write.csv(inter, "d:/chengjun/Twitter data/Ocuupy Wallstreet Data/OccupyWallstreetInterData.csv")
 # result[c(1,3), 'score']
-hist(inter$sentiment.score)  # plot(data.frame(table(inter$sentiment.score)))
+hist(inter$sum.sen.score)
+hist(inter$pos.sen.score)
+hist(inter$neg.sen.score)
 
-d924<-subset(inter, inter$Day=="2011-09-24") 
+  # plot(data.frame(table(inter$sentiment.score)))
+
+d924<-subset(inter, as.character(inter$Day)=="2011-09-24") 
 d925<-subset(inter, as.character(inter$Day)=="2011-09-25") 
 d926<-subset(inter, as.character(inter$Day)=="2011-09-26") 
 d927<-subset(inter, as.character(inter$Day)=="2011-09-27") 
@@ -1286,9 +1435,9 @@ corrr<-sapply(list,f)
 f<-function(x){
  dt<-subset(inter, inter$RT==1&inter$Day==x)
  dt$num<-1
- dt1<-aggregate(dt$num, by=list(dt$From.User, abs(dt$sentiment.score)), FUN=sum) # I use the absolute value of emotion
+ dt1<-aggregate(dt$num, by=list(dt$From.User, dt$sum.sen.score), FUN=sum) # I use the absolute value of emotion
  names(dt1)<-c("sender", "emotion", "num")
- dt1[,4]<-(dt1[,2])*(dt1[,3])
+ dt1[,4]<-(dt1[,2])*(dt1[,3]) 
  dt2<-aggregate(dt1[,3:4], by=list(dt1[,1]), FUN=sum)
  names(dt2)<-c("sender", "num1", "emotion1")
  dt2$date<-x
@@ -1334,7 +1483,7 @@ sd15<-merge(sd14, corrr[[15]],by="sender",all=T,incomparables= NA)
 sd16<-merge(sd15, corrr[[16]],by="sender",all=T,incomparables= NA)
 sd16[is.na(sd16)]<-0
 
-# write.csv(sd16, "d:/chengjun/Twitter data/Ocuupy Wallstreet Data/ows_sd16.csv")
+ write.csv(sd16, "/Users/wangpianpian/Dropbox/projects/tweets/data_delete after you download/20120707ows_sd16.csv")
 
 allstar<-subset(sd16, sd16$num1!=0&sd16$num2!=0&sd16$num3!=0&sd16$num4!=0&sd16$num5!=0
  &sd16$num6!=0&sd16$num7!=0&sd16$num8!=0&sd16$num9!=0&sd16$num10!=0&sd16$num11!=0
@@ -1342,13 +1491,24 @@ allstar<-subset(sd16, sd16$num1!=0&sd16$num2!=0&sd16$num3!=0&sd16$num4!=0&sd16$n
 sd16$emotion_sum<-sum(sd16$emotion1, sd16$emotion2, sd16$emotion3, sd16$emotion4, sd16$emotion5, sd16$emotion6,
     sd16$emotion7, sd16$emotion8, sd16$emotion9, sd16$emotion10, sd16$emotion11, sd16$emotion12, 
     sd16$emotion13, sd16$emotion14, sd16$emotion15, sd16$emotion16)
+    
+# the aggregated emotion
+sumemo<-function(n){
+     see<-sum(sd16$emotion1[n],sd16$emotion2[n],sd16$emotion3[n],sd16$emotion4[n],sd16$emotion5[n],
+sd16$emotion6[n],sd16$emotion7[n],sd16$emotion8[n],sd16$emotion9[n],sd16$emotion10[n],sd16$emotion11[n],sd16$emotion12[n],sd16$emotion13[n],sd16$emotion14[n],sd16$emotion15[n],sd16$emotion16[n])
+   return(see)}
+sd16$emotion_sum<-sapply(c(1:length(sd16[,1])), sumemo)
+head(sd16)
+# the aggregated number of tweets
 sumem<-function(n){
    ss<-sum(sd16$num1[n],sd16$num2[n],sd16$num3[n],sd16$num4[n],sd16$num5[n],
     sd16$num6[n],sd16$num7[n],sd16$num8[n],sd16$num9[n],sd16$num10[n],sd16$num11[n],
     sd16$num12[n],sd16$num13[n],sd16$num14[n],sd16$num15[n],sd16$num16[n])
    return(ss)}
-emotion_sum<-sapply(c(1:length(sd16[,1])), sumem)
-sd16$emotion_sum<-emotion_sum
+sd16$emotion_num<-sapply(c(1:length(sd16[,1])), sumem)
+
+# average emotion
+sd16$emotion_mean<-sd16$emotion_sum/sd16$emotion_num
 
 sde<-function(n){
    ss<-c(sd16$num1[n],sd16$num2[n],sd16$num3[n],sd16$num4[n],sd16$num5[n],
@@ -1356,9 +1516,17 @@ sde<-function(n){
     sd16$num12[n],sd16$num13[n],sd16$num14[n],sd16$num15[n],sd16$num16[n])
    sdd<-sd(ss)
    return(sdd)}
-discussion_sd<-sapply(c(1:length(sd16[,1])), sde)
-sd16$discussion_sd<-discussion_sd
+sd16$discussion_sd<-sapply(c(1:length(sd16[,1])), sde)
 
+cor((sd16$emotion_mean), (sd16$discussion_sd))  # cor -0.004100054
+cor((sd16$emotion_mean), (sd16$emotion_num))  #-0.001887358
+
+library(Hmisc)
+#  emotion and stability
+rcorr(as.matrix(data.frame(sd16$emotion_mean, sd16$discussion_sd)),type="pearson") # p = 0.516 
+#  emotion and equality
+rcorr(as.matrix(data.frame(sd16$emotion_mean, sd16$emotion_num)),type="pearson") # p = 0.765 
+#ignore---
 cor.test(sd16$emotion_sum, sd16$discussion_sd)
 plot(sd16$emotion_sum, sd16$discussion_sd)
 
@@ -1369,6 +1537,11 @@ summary(reg)
 abline(reg)
 text(1000,60,"R-squared: 0.82")
 
+
+#sampling
+test.lexicon<-inter[sample(c(1:length(inter[,1])),  200),]
+write.csv(test.lexicon, "/Users/wangpianpian/Dropbox/projects/tweets/data_delete after you download/test.lexicon.csv")
+write.
 
 
 
